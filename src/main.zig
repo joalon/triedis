@@ -14,16 +14,16 @@ pub fn main() !void {
     while (true) {
         const client = try socket.accept();
         const reader = client.stream.reader();
-        const msg = try reader.readUntilDelimiterOrEofAlloc(gpa, '\n', 65536) orelse break;
-        defer gpa.free(msg);
+        while (true) {
+            const msg = try reader.readUntilDelimiterOrEofAlloc(gpa, '\n', 65536) orelse break;
+            defer gpa.free(msg);
 
-        std.log.info("Message: {s}", .{msg});
+            if (std.mem.eql(u8, msg, "quit")) {
+                std.log.info("client exited", .{});
+                break;
+            }
+
+            std.log.info("Message: {s}", .{msg});
+        }
     }
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
 }
