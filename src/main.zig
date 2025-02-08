@@ -1,19 +1,24 @@
 const std = @import("std");
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa_alloc.deinit() == .ok);
+    const gpa = gpa_alloc.allocator();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    const port = 4657;
+    const addr = std.net.Address.initIp4(.{ 0, 0, 0, 0 }, port);
+    var socket = try addr.listen(.{});
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    std.log.info("Server listening on port {d}", .{port});
 
-    try bw.flush(); // don't forget to flush!
+    while (true) {
+        const client = try socket.accept();
+        const reader = client.stream.reader();
+        const msg = try reader.readUntilDelimiterOrEofAlloc(gpa, '\n', 65536) orelse break;
+        defer gpa.free(msg);
+
+        std.log.info("Message: {s}", .{msg});
+    }
 }
 
 test "simple test" {

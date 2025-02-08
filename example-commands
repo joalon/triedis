@@ -1,0 +1,7 @@
+CREATE test-trie
+INSERT test-trie "another"
+INSERT test-trie "super"
+INSERT test-trie "support"
+TRIEFIND test-trie "sup"
+> "super"
+> "support"
