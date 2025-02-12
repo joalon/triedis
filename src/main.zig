@@ -43,7 +43,10 @@ pub fn main() !void {
     const port = 4657;
     const addr = std.net.Address.initIp4(.{ 0, 0, 0, 0 }, port);
 
-    var server = Server{ .exit = false, .address = addr, .tries = std.StringHashMap(Trie).init(gpa) };
+    // var server = Server{ .exit = false, .address = addr, .tries = std.StringHashMap(Trie).init(gpa) };
+    // defer gpa.free(server.tries);
+    var server = Server{ .exit = false, .address = addr, .tries = std.StringHashMap(u8).init(gpa) };
+
     var socket = try server.address.listen(.{});
 
     std.log.info("Server listening on port {d}", .{port});
@@ -113,10 +116,45 @@ pub fn main() !void {
 
 const Server = struct {
     address: std.net.Address,
-    tries: std.StringHashMap(Trie),
+    tries: std.StringHashMap(u8),
     exit: bool,
 };
 
-const Trie = struct {
-    terminatesWord: bool,
+const TrieNode = struct {
+    const Self = @This();
+
+    children: std.AutoHashMap(u8, TrieNode),
+    endsWord: bool = false,
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return .{
+            .children = std.AutoHashMap(u8, TrieNode).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        std.debug.print("In deinit.\n", .{});
+        var iter = self.children.valueIterator();
+        while (iter.next()) |node| {
+            node.deinit();
+        }
+        self.children.deinit();
+    }
 };
+
+const testing = std.testing;
+
+test "Create and destroy TrieNodes" {
+    var parent = TrieNode.init(testing.allocator);
+    defer parent.deinit();
+
+    var child = TrieNode.init(testing.allocator);
+
+    const grandChild = TrieNode.init(testing.allocator);
+    try child.children.put(1, grandChild);
+
+    try parent.children.put(1, child);
+
+    try testing.expectEqual(1, parent.children.count());
+    try testing.expectEqual(1, child.children.count());
+}
