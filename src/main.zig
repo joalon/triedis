@@ -120,6 +120,27 @@ const Server = struct {
     exit: bool,
 };
 
+const Trie = struct {
+    const Self = @This();
+
+    root: ?TrieNode = null,
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return .{
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        if (self.root == null) {
+            return;
+        }
+
+        self.root.?.deinit();
+    }
+};
+
 const TrieNode = struct {
     const Self = @This();
 
@@ -142,6 +163,18 @@ const TrieNode = struct {
 };
 
 const testing = std.testing;
+
+test "Create and destroy Tries" {
+    var trie = Trie.init(testing.allocator);
+    defer trie.deinit();
+
+    trie.root = TrieNode.init(testing.allocator);
+
+    const child = TrieNode.init(testing.allocator);
+    try trie.root.?.children.put(1, child);
+
+    try testing.expectEqual(1, trie.root.?.children.count());
+}
 
 test "Create and destroy TrieNodes" {
     var parent = TrieNode.init(testing.allocator);
