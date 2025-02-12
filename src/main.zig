@@ -4,11 +4,15 @@ const Commands = enum {
     exit,
     ping,
     echo,
+    create,
+    numtries,
 
     pub const CommandsTable = [@typeInfo(Commands).Enum.fields.len][:0]const u8{
         "exit",
         "ping",
         "echo",
+        "create",
+        "numtries",
     };
 
     pub fn str(self: Commands) [:0]const u8 {
@@ -23,6 +27,10 @@ fn parseCommand(str: []const u8) ?Commands {
         return Commands.ping;
     } else if (std.mem.eql(u8, str, "echo")) {
         return Commands.echo;
+    } else if (std.mem.eql(u8, str, "create")) {
+        return Commands.create;
+    } else if (std.mem.eql(u8, str, "numtries")) {
+        return Commands.numtries;
     }
     return null;
 }
@@ -79,6 +87,24 @@ pub fn main() !void {
                     defer gpa.free(echo);
 
                     _ = try writer.write(echo);
+                },
+                .create => {
+                    std.log.info("Got create command", .{});
+                    const name = msg[command.len + 1 ..];
+                    // TODO: Use a new allocator when creating a trie
+                    // try server.tries.put(name, Trie.init(gpa));
+                    _ = name;
+                },
+                .numtries => {
+                    std.log.info("Got numtries command", .{});
+                    const numtries = try std.fmt.allocPrint(
+                        gpa,
+                        "{d}\n",
+                        .{server.tries.count()},
+                    );
+                    defer gpa.free(numtries);
+
+                    _ = try writer.write(numtries);
                 },
             }
         }
