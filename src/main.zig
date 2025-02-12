@@ -133,7 +133,6 @@ const TrieNode = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        std.debug.print("In deinit.\n", .{});
         var iter = self.children.valueIterator();
         while (iter.next()) |node| {
             node.deinit();
