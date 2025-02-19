@@ -5,14 +5,18 @@ const Commands = enum {
     ping,
     echo,
     create,
+    insert,
     numtries,
+    prefixsearch,
 
     pub const CommandsTable = [@typeInfo(Commands).Enum.fields.len][:0]const u8{
         "exit",
         "ping",
         "echo",
         "create",
+        "insert",
         "numtries",
+        "prefixsearch",
     };
 
     pub fn str(self: Commands) [:0]const u8 {
@@ -29,8 +33,12 @@ fn parseCommand(str: []const u8) ?Commands {
         return Commands.echo;
     } else if (std.mem.eql(u8, str, "create")) {
         return Commands.create;
+    } else if (std.mem.eql(u8, str, "insert")) {
+        return Commands.insert;
     } else if (std.mem.eql(u8, str, "numtries")) {
         return Commands.numtries;
+    } else if (std.mem.eql(u8, str, "prefixsearch")) {
+        return Commands.prefixsearch;
     }
     return null;
 }
@@ -43,9 +51,11 @@ pub fn main() !void {
     const port = 4657;
     const addr = std.net.Address.initIp4(.{ 0, 0, 0, 0 }, port);
 
-    // var server = Server{ .exit = false, .address = addr, .tries = std.StringHashMap(Trie).init(gpa) };
-    // defer gpa.free(server.tries);
-    var server = Server{ .exit = false, .address = addr, .tries = std.StringHashMap(u8).init(gpa) };
+    const tries = try gpa.create(std.StringHashMap(*Trie));
+    defer gpa.destroy(tries);
+    tries.* = std.StringHashMap(*Trie).init(gpa);
+
+    var server = Server{ .exit = false, .address = addr, .tries = tries };
 
     var socket = try server.address.listen(.{});
 
@@ -93,10 +103,12 @@ pub fn main() !void {
                 },
                 .create => {
                     std.log.info("Got create command", .{});
-                    const name = msg[command.len + 1 ..];
-                    // TODO: Use a new allocator when creating a trie
-                    // try server.tries.put(name, Trie.init(gpa));
-                    _ = name;
+                    const name = try std.fmt.allocPrint(gpa, "{s}", .{msg[command.len + 1 ..]});
+
+                    const newTrie = try gpa.create(Trie);
+                    newTrie.* = Trie.init(gpa);
+
+                    try server.tries.put(name, newTrie);
                 },
                 .numtries => {
                     std.log.info("Got numtries command", .{});
@@ -109,6 +121,31 @@ pub fn main() !void {
 
                     _ = try writer.write(numtries);
                 },
+                .insert => {
+                    std.log.info("Got insert command", .{});
+                    const trieName = arguments.next().?;
+                    const insertString = arguments.next().?;
+
+                    var trie = server.tries.get(trieName).?;
+                    try trie.insert(insertString);
+                },
+                .prefixsearch => {
+                    std.log.info("Got prefixsearch command", .{});
+                    const triename = arguments.next().?;
+                    const searchString = arguments.next().?;
+
+                    var trie = server.tries.get(triename).?;
+
+                    var result = std.ArrayList([]const u8).init(gpa);
+                    defer result.deinit();
+
+                    try trie.prefixSearch(&result, searchString);
+
+                    for (result.items) |foundStr| {
+                        _ = try writer.print("{s}\n", .{foundStr});
+                        defer gpa.free(foundStr);
+                    }
+                },
             }
         }
     }
@@ -116,7 +153,7 @@ pub fn main() !void {
 
 const Server = struct {
     address: std.net.Address,
-    tries: std.StringHashMap(u8),
+    tries: *std.StringHashMap(*Trie),
     exit: bool,
 };
 
