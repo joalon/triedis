@@ -2,6 +2,10 @@
 
 A small server for managing in-memory tries.
 
+## Compile
+
+Run `zig build`. Tested on zig 0.13.0.
+
 ## Usage
 
 The server is a static binary, run it with `./triedis`. For options, use `-h`.
@@ -25,3 +29,4 @@ cathedral
 
 * Add client concurrency through event loop or thread pool
 * Implement more efficient tries through radix trees
+* Run property tests on Trie module
