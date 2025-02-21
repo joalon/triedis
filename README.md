@@ -30,3 +30,4 @@ cathedral
 * Add client concurrency through event loop or thread pool
 * Implement more efficient tries through radix trees
 * Run property tests on Trie module
+* Implement the [Redis serialization protocol](https://redis.io/docs/latest/develop/reference/protocol-spec/)
