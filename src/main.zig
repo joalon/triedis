@@ -71,7 +71,7 @@ pub fn main() !void {
             const msg = try reader.readUntilDelimiterOrEofAlloc(gpa, '\n', 65536) orelse break;
             defer gpa.free(msg);
 
-            var arguments = std.mem.split(u8, msg, " ");
+            var arguments = std.mem.splitScalar(u8, msg, ' ');
             const command = arguments.next().?;
             const parsed = parseCommand(command).?;
 
