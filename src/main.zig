@@ -74,14 +74,18 @@ pub fn main() !void {
 
             var arguments = std.mem.splitScalar(u8, msg, ' ');
             const command = arguments.next().?;
-            const parsed = parseCommand(command).?;
+            const parsed = parseCommand(command);
+            if (parsed == null) {
+                _ = try writer.write("invalid command\n");
+                continue;
+            }
 
             std.log.info("Received command: {s}", .{command});
             if (msg.len > command.len + 1) {
                 std.log.info("With arguments: {s}", .{msg[command.len + 1 ..]});
             }
 
-            switch (parsed) {
+            switch (parsed.?) {
                 .exit => {
                     std.log.info("Got exit command", .{});
                     server.exit = true;
