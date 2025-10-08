@@ -2,7 +2,12 @@
     .name = .triedis,
     .fingerprint = 0x6996061550b18262,
     .version = "0.1.0",
-    .dependencies = .{},
+    .dependencies = .{
+        .libxev = .{
+            .url = "https://github.com/mitchellh/libxev/archive/200c173b5314ea6e6ae8d46a875bcd800170a833.tar.gz",
+            .hash = "1220f87993765ad8cf3d2542950311a6116ce38ec7e5a60a07864fd7105c589b3978",
+        },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",
