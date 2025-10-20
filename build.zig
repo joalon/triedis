@@ -4,6 +4,12 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const trie_mod = b.createModule(.{
+        .root_source_file = b.path("src/trie.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const exe = b.addExecutable(.{
         .name = "triedis",
         .root_source_file = b.path("src/main.zig"),
@@ -13,6 +19,7 @@ pub fn build(b: *std.Build) void {
 
     const xev = b.dependency("libxev", .{ .target = target, .optimize = optimize });
     exe.root_module.addImport("xev", xev.module("xev"));
+    exe.root_module.addImport("trie", trie_mod);
 
     b.installArtifact(exe);
 
