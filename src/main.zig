@@ -58,7 +58,7 @@ pub fn main() !void {
     defer gpa.destroy(tries);
     tries.* = std.StringHashMap(*Trie).init(gpa);
 
-    var server = Server{ .exit = false, .address = address, .tries = tries };
+    var server = Server{ .allocator = gpa, .exit = false, .address = address, .tries = tries };
 
     var loop = try xev.Loop.init(.{});
     defer loop.deinit();
@@ -83,19 +83,90 @@ fn acceptCallback(
     completion: *xev.Completion,
     result: xev.AcceptError!xev.TCP,
 ) xev.CallbackAction {
-    _ = userdata;
-    _ = loop;
     _ = completion;
-    _ = result catch |err| {
+
+    const client = result catch |err| {
         std.log.err("Accept client error: {any}.", .{err});
         return .rearm;
     };
     std.log.info("Accepted new client", .{});
 
+    const conn = userdata.?.allocator.create(Connection) catch {
+        std.debug.print("error, out of memory", .{});
+        return .disarm;
+    };
+
+    client.read(loop, &conn.readCompletion, .{ .slice = &conn.buffer }, Connection, conn, readCallback);
+
     return .rearm;
 }
 
+const Connection = struct {
+    buffer: [8192]u8,
+    readCompletion: xev.Completion,
+    closeCompletion: xev.Completion,
+
+    fn init() Connection {
+        return Connection{
+            .buffer = undefined,
+            .readCompletion = .{},
+            .closeCompletion = .{},
+        };
+    }
+};
+
+fn readCallback(
+    userdata: ?*Connection,
+    loop: *xev.Loop,
+    completion: *xev.Completion,
+    tcp: xev.TCP,
+    buffer: xev.ReadBuffer,
+    result: xev.ReadError!usize,
+) xev.CallbackAction {
+    _ = completion;
+    _ = buffer;
+
+    const conn = userdata orelse {
+        std.debug.print("No userdata!\n", .{});
+        return .disarm;
+    };
+
+    const bytesRead = result catch |err| {
+        std.debug.print("No bytes read: {any}\n", .{err});
+        if (err == error.EOF) {
+            std.debug.print("Got EOF, closing socket.\n", .{});
+            tcp.close(loop, &conn.closeCompletion, Connection, conn, closeCallback);
+        }
+        return .disarm;
+    };
+
+    std.debug.print("received {} bytes: {s}\n", .{ bytesRead, userdata.?.buffer[0..bytesRead] });
+    return .rearm;
+}
+
+fn closeCallback(
+    userdata: ?*Connection,
+    loop: *xev.Loop,
+    completion: *xev.Completion,
+    tcp: xev.TCP,
+    result: xev.CloseError!void,
+) xev.CallbackAction {
+    _ = loop;
+    _ = completion;
+    _ = tcp;
+    _ = userdata;
+
+    result catch |err| {
+        std.debug.print("error during connection close: {any}", .{err});
+    };
+
+    std.debug.print("connection closed.\n", .{});
+
+    return .disarm;
+}
+
 const Server = struct {
+    allocator: std.mem.Allocator,
     address: std.net.Address,
     tries: *std.StringHashMap(*Trie),
     exit: bool,
