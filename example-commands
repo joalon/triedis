@@ -3,5 +3,3 @@ insert test-trie another
 insert Test-trie super
 insert Test-trie support
 prefixsearch test-trie sup
-> super
-> support
