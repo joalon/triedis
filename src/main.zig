@@ -105,12 +105,14 @@ const Connection = struct {
     buffer: [8192]u8,
     readCompletion: xev.Completion,
     closeCompletion: xev.Completion,
+    writeCompletion: xev.Completion,
 
     fn init() Connection {
         return Connection{
             .buffer = undefined,
             .readCompletion = .{},
             .closeCompletion = .{},
+            .writeCompletion = .{},
         };
     }
 };
@@ -141,7 +143,31 @@ fn readCallback(
     };
 
     std.debug.print("received {} bytes: {s}\n", .{ bytesRead, userdata.?.buffer[0..bytesRead] });
+    tcp.write(loop, &conn.writeCompletion, .{ .slice = "message received.\n" }, Connection, conn, writeCallback);
     return .rearm;
+}
+
+fn writeCallback(
+    userdata: ?*Connection,
+    loop: *xev.Loop,
+    completion: *xev.Completion,
+    tcp: xev.TCP,
+    buffer: xev.WriteBuffer,
+    result: xev.WriteError!usize,
+) xev.CallbackAction {
+    _ = userdata;
+    _ = loop;
+    _ = completion;
+    _ = tcp;
+    _ = buffer;
+
+    _ = result catch |err| {
+        std.debug.print("an error occurred when writing the response: {any}\n", .{err});
+        return .disarm;
+    };
+
+    std.debug.print("response sent.\n", .{});
+    return .disarm;
 }
 
 fn closeCallback(
