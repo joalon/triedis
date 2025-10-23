@@ -14,11 +14,9 @@ pub const Trie = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        if (self.root == null) {
-            return;
+        if (self.root) |*root| {
+            root.deinit();
         }
-
-        self.root.?.deinit();
     }
 
     pub fn insert(self: *Self, str: []const u8) !void {
