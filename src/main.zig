@@ -142,8 +142,32 @@ fn readCallback(
         return .disarm;
     };
 
-    std.debug.print("received {} bytes: {s}\n", .{ bytesRead, userdata.?.buffer[0..bytesRead] });
-    tcp.write(loop, &conn.writeCompletion, .{ .slice = "message received.\n" }, Connection, conn, writeCallback);
+    const msg = conn.buffer[0..bytesRead];
+
+    var arguments = std.mem.splitScalar(u8, msg, ' ');
+    const command = std.mem.trim(u8, arguments.next().?, "\n");
+    const parsed = parseCommand(command) orelse {
+        std.debug.print("client sent invalid command: {s}", .{command});
+        return .rearm;
+    };
+
+    std.log.info("Received command: {s}", .{command});
+    if (msg.len > command.len + 1) {
+        std.log.info("With arguments: {s}", .{msg[command.len + 1 ..]});
+    }
+
+    switch (parsed) {
+        .ping => {
+            std.log.info("Got ping command", .{});
+            tcp.write(loop, &conn.writeCompletion, .{ .slice = "pong" }, Connection, conn, writeCallback);
+        },
+        else => {
+            std.log.info("unsupported command", .{});
+        },
+    }
+
+    // std.debug.print("received {} bytes: {s}\n", .{ bytesRead, userdata.?.buffer[0..bytesRead] });
+    // tcp.write(loop, &conn.writeCompletion, .{ .slice = "message received.\n" }, Connection, conn, writeCallback);
     return .rearm;
 }
 
