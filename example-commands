@@ -1,4 +1,3 @@
-create Test-trie
 insert test-trie another
 insert Test-trie super
 insert Test-trie support

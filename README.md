@@ -14,7 +14,6 @@ An example run with netcat against the server:
 
 ```bash
 $ nc localhost 4657
-create mytrie
 insert mytrie cat
 insert mytrie category
 insert mytrie cathedral
