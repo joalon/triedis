@@ -225,6 +225,7 @@ fn readCallback(
             for (searchresult.items) |foundStr| {
                 std.log.info("writing result: {s}", .{foundStr});
                 tcp.write(loop, &conn.writeCompletion, .{ .slice = foundStr }, Connection, conn, writeCallback);
+                tcp.write(loop, &conn.writeCompletion, .{ .slice = "\n" }, Connection, conn, writeCallback);
             }
         },
         else => {
