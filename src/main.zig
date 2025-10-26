@@ -4,21 +4,13 @@ const xev = @import("xev");
 const Trie = @import("trie").Trie;
 
 const Commands = enum {
-    exit,
     ping,
-    echo,
-    create,
     insert,
-    numtries,
     prefixsearch,
 
     pub const CommandsTable = [@typeInfo(Commands).Enum.fields.len][:0]const u8{
-        "exit",
         "ping",
-        "echo",
-        "create",
         "insert",
-        "numtries",
         "prefixsearch",
     };
 
@@ -28,18 +20,10 @@ const Commands = enum {
 };
 
 fn parseCommand(str: []const u8) ?Commands {
-    if (std.mem.eql(u8, str, "exit")) {
-        return Commands.exit;
-    } else if (std.mem.eql(u8, str, "ping")) {
+    if (std.mem.eql(u8, str, "ping")) {
         return Commands.ping;
-    } else if (std.mem.eql(u8, str, "echo")) {
-        return Commands.echo;
-    } else if (std.mem.eql(u8, str, "create")) {
-        return Commands.create;
     } else if (std.mem.eql(u8, str, "insert")) {
         return Commands.insert;
-    } else if (std.mem.eql(u8, str, "numtries")) {
-        return Commands.numtries;
     } else if (std.mem.eql(u8, str, "prefixsearch")) {
         return Commands.prefixsearch;
     }
@@ -172,7 +156,6 @@ fn readCallback(
             tcp.write(loop, &conn.writeCompletion, .{ .slice = "pong" }, Connection, conn, writeCallback);
         },
         .insert => {
-            // const triename = arguments.next().?;
             const name = std.fmt.allocPrint(conn.allocator, "{s}", .{arguments.next().?}) catch |err| {
                 std.log.err("An error occurred during name allocation in .insert: {any}\n", .{err});
                 return .rearm;
@@ -227,10 +210,7 @@ fn readCallback(
                 tcp.write(loop, &conn.writeCompletion, .{ .slice = foundStr }, Connection, conn, writeCallback);
                 tcp.write(loop, &conn.writeCompletion, .{ .slice = "\n" }, Connection, conn, writeCallback);
             }
-        },
-        else => {
-            std.log.info("unsupported command", .{});
-        },
+        }
     }
 
     return .rearm;
