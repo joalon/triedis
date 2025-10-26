@@ -8,7 +8,7 @@ Run `zig build`. Tested on zig 0.14.1.
 
 ## Usage
 
-The server is a static binary, run it with `./triedis`. For options, use `-h`.
+The server is a static binary, run it with `./triedis`.
 
 An example run with netcat against the server:
 
