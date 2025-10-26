@@ -42,7 +42,7 @@ pub fn main() !void {
     defer gpa.destroy(tries);
     tries.* = std.StringHashMap(*Trie).init(gpa);
 
-    var server = Server{ .allocator = gpa, .exit = false, .address = address, .tries = tries };
+    var server = Server{ .allocator = gpa, .address = address, .tries = tries };
 
     var loop = try xev.Loop.init(.{});
     defer loop.deinit();
@@ -210,7 +210,7 @@ fn readCallback(
                 tcp.write(loop, &conn.writeCompletion, .{ .slice = foundStr }, Connection, conn, writeCallback);
                 tcp.write(loop, &conn.writeCompletion, .{ .slice = "\n" }, Connection, conn, writeCallback);
             }
-        }
+        },
     }
 
     return .rearm;
@@ -264,5 +264,4 @@ const Server = struct {
     allocator: std.mem.Allocator,
     address: std.net.Address,
     tries: *std.StringHashMap(*Trie),
-    exit: bool,
 };
