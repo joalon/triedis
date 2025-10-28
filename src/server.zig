@@ -1,5 +1,6 @@
 const std = @import("std");
 const xev = @import("xev");
+const testing = std.testing;
 
 const Trie = @import("trie").Trie;
 
@@ -248,4 +249,21 @@ fn closeCallback(
     };
 
     return .disarm;
+}
+
+fn encodeResp(allocator: std.mem.Allocator, input: []const u8) []const u8 {
+    _ = allocator;
+    _ = input;
+
+    return "-OUCH";
+    // return "*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n";
+}
+
+test "encode a command to RESP" {
+    const expected = "*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n";
+    const input = "LLEN mylist";
+
+    const result = encodeResp(testing.allocator, input);
+
+    try testing.expectEqual(expected, result);
 }
