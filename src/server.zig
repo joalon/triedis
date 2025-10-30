@@ -278,7 +278,7 @@ fn encodeBulkStringResp(allocator: std.mem.Allocator, input: []const u8) ![]cons
     return list.toOwnedSlice();
 }
 
-fn encodeArrayResp(allocator: std.mem.Allocator, input: []const []const u8) ![]const u8 {
+fn encodeCommandResp(allocator: std.mem.Allocator, input: []const []const u8) ![]const u8 {
     var list = std.ArrayList(u8).init(allocator);
     defer list.deinit();
 
@@ -322,12 +322,12 @@ test "simple resp string mustn't contain \\r or \\n" {
     try testing.expectError(expected, result);
 }
 
-test "encode an array to RESP" {
+test "encode an array of strings to RESP array of bulk string" {
     const allocator = testing.allocator;
     const expected = "*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n";
     const input = [_][]const u8{ "LLEN", "mylist" };
 
-    const result = try encodeArrayResp(allocator, &input);
+    const result = try encodeCommandResp(allocator, &input);
     defer allocator.free(result);
 
     try testing.expectEqualStrings(expected, result);
