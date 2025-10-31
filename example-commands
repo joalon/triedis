@@ -1,4 +1,4 @@
-insert test-trie another
-insert Test-trie super
-insert Test-trie support
-prefixsearch test-trie sup
+set test-trie another
+set test-trie super
+set test-trie support
+tprefix test-trie sup
