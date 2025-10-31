@@ -59,13 +59,15 @@ const Connection = struct {
 
 const Commands = enum {
     ping,
-    insert,
-    prefixsearch,
+    set,
+    get,
+    tprefix,
 
     pub const CommandsTable = [@typeInfo(Commands).Enum.fields.len][:0]const u8{
         "ping",
-        "insert",
-        "prefixsearch",
+        "set",
+        "get",
+        "tprefix",
     };
 
     pub fn str(self: Commands) [:0]const u8 {
@@ -73,13 +75,20 @@ const Commands = enum {
     }
 };
 
-fn parseCommand(str: []const u8) ?Commands {
-    if (std.mem.eql(u8, str, "ping")) {
+fn parseCommand(allocator: std.mem.Allocator, str: []const u8) ?Commands {
+    const lowercase = std.ascii.allocLowerString(allocator, str) catch {
+        return null;
+    };
+    defer allocator.free(lowercase);
+
+    if (std.mem.eql(u8, lowercase, "ping")) {
         return Commands.ping;
-    } else if (std.mem.eql(u8, str, "insert")) {
-        return Commands.insert;
-    } else if (std.mem.eql(u8, str, "prefixsearch")) {
-        return Commands.prefixsearch;
+    } else if (std.mem.eql(u8, lowercase, "set")) {
+        return Commands.set;
+    } else if (std.mem.eql(u8, lowercase, "get")) {
+        return Commands.get;
+    } else if (std.mem.eql(u8, lowercase, "tprefix")) {
+        return Commands.tprefix;
     }
     return null;
 }
@@ -141,7 +150,7 @@ fn readCallback(
 
     var arguments = std.mem.splitScalar(u8, std.mem.trim(u8, msg, "\n"), ' ');
     const command = arguments.next().?;
-    const parsed = parseCommand(command) orelse {
+    const parsed = parseCommand(conn.allocator, command) orelse {
         std.log.info("client sent invalid command: {s}", .{command});
         return .rearm;
     };
@@ -149,11 +158,15 @@ fn readCallback(
     switch (parsed) {
         .ping => {
             std.log.info("Got ping command", .{});
+            if (arguments.next()) |arg| {
+                tcp.write(loop, &conn.writeCompletion, .{ .slice = arg }, Connection, conn, writeCallback);
+                return .rearm;
+            }
             tcp.write(loop, &conn.writeCompletion, .{ .slice = "pong" }, Connection, conn, writeCallback);
         },
-        .insert => {
+        .set => {
             const name = std.fmt.allocPrint(conn.allocator, "{s}", .{arguments.next().?}) catch |err| {
-                std.log.err("An error occurred during name allocation in .insert: {any}\n", .{err});
+                std.log.err("An error occurred during name allocation in set: {any}\n", .{err});
                 return .rearm;
             };
 
@@ -161,13 +174,13 @@ fn readCallback(
             if (conn.server.tries.get(name) == null) {
                 std.log.info("creating '{s}'", .{name});
                 const newTrie = conn.allocator.create(Trie) catch |err| {
-                    std.log.err("An error occurred during trie allocation in .insert: {any}\n", .{err});
+                    std.log.err("An error occurred during trie allocation in set: {any}\n", .{err});
                     return .rearm;
                 };
                 newTrie.* = Trie.init(conn.allocator);
 
                 _ = conn.server.tries.put(name, newTrie) catch |err| {
-                    std.log.err("An error occurred when creating the new trie in .insert: {any}", .{err});
+                    std.log.err("An error occurred when creating the new trie in set: {any}", .{err});
                     return .rearm;
                 };
             }
@@ -181,7 +194,22 @@ fn readCallback(
                 return .rearm;
             };
         },
-        .prefixsearch => {
+        .get => {
+            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{arguments.next().?}) catch |err| {
+                std.log.err("An error occurred during name allocation in set: {any}\n", .{err});
+                return .rearm;
+            };
+
+            if (conn.server.tries.get(name)) |trie| {
+                const searchString = arguments.next().?;
+                if (trie.contains(searchString)) {
+                    tcp.write(loop, &conn.writeCompletion, .{ .slice = "t\n" }, Connection, conn, writeCallback);
+                    return .rearm;
+                }
+                tcp.write(loop, &conn.writeCompletion, .{ .slice = "f\n" }, Connection, conn, writeCallback);
+            }
+        },
+        .tprefix => {
             const triename = arguments.next().?;
             const searchString = arguments.next().?;
 
@@ -251,4 +279,14 @@ fn closeCallback(
     };
 
     return .disarm;
+}
+
+test "parseCommand returns ping correctly" {
+    const allocator = std.testing.allocator;
+    const input = "PING";
+    const expected = Commands.ping;
+
+    const actual = parseCommand(allocator, input);
+
+    try std.testing.expect(actual == expected);
 }
