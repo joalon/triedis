@@ -44,5 +44,4 @@ In RESP terms this is called inline commands.
 
 * ~~Add client concurrency through event loop or thread pool~~
 * Implement the [Redis serialization protocol](https://redis.io/docs/latest/develop/reference/protocol-spec/)
-* Run property tests on Trie module
 * Implement more efficient tries through radix trees
