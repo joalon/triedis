@@ -31,9 +31,11 @@ according to the RESP protocol.
 
 ### Reference
 
-SET     - Insert a string into a trie key
-GET     - Check if trie contains a word
-TPREFIX - Return all words with a prefix
+| Command           | Description                     | Example           |
+|-------------------|---------------------------------|-------------------|
+| SET Key Value     | Insert a value into a trie key  | SET mytrie castle |
+| GET Key Value     | Check if trie contains a word   | GET mytrie castle |
+| TPREFIX Key Value | Return all words with a prefix  | TPREFIX mytrie ca |
 
 ### Inline commands
 
