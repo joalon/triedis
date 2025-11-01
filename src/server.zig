@@ -156,8 +156,23 @@ fn readCallback(
 
     if (msg[0] == '*') {
         std.log.info("Got RESP command", .{});
-        std.log.err("Not implemented yet", .{});
-        return .rearm;
+        var arguments = resp.decodeCommandResp(conn.allocator, msg) catch |err| {
+            std.log.err("An error occurred during RESP decoding: {any}\n", .{err});
+            return .rearm;
+        };
+        defer {
+            for (arguments) |str| {
+                conn.allocator.free(str);
+            }
+            conn.allocator.free(arguments);
+        }
+        const command = arguments[0];
+        const parsed = parseCommand(conn.allocator, command) orelse {
+            std.log.info("client sent invalid command: {s}", .{command});
+            return .rearm;
+        };
+        request.command = parsed;
+        request.arguments = arguments[1..arguments.len];
     } else {
         var arguments = std.mem.splitScalar(u8, std.mem.trim(u8, msg, "\n"), ' ');
         const command = arguments.next().?;
