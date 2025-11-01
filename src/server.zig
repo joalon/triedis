@@ -37,6 +37,11 @@ pub const Server = struct {
     }
 };
 
+const Request = struct {
+    command: Commands,
+    arguments: std.mem.SplitIterator(u8, .scalar),
+};
+
 const Connection = struct {
     allocator: std.mem.Allocator,
     server: *Server,
@@ -147,25 +152,34 @@ fn readCallback(
     };
 
     const msg = conn.buffer[0..bytesRead];
+    var request: Request = undefined;
 
-    var arguments = std.mem.splitScalar(u8, std.mem.trim(u8, msg, "\n"), ' ');
-    const command = arguments.next().?;
-    const parsed = parseCommand(conn.allocator, command) orelse {
-        std.log.info("client sent invalid command: {s}", .{command});
+    if (msg[0] == '*') {
+        std.log.info("Got RESP command", .{});
+        std.log.err("Not implemented yet", .{});
         return .rearm;
-    };
+    } else {
+        var arguments = std.mem.splitScalar(u8, std.mem.trim(u8, msg, "\n"), ' ');
+        const command = arguments.next().?;
+        const parsed = parseCommand(conn.allocator, command) orelse {
+            std.log.info("client sent invalid command: {s}", .{command});
+            return .rearm;
+        };
+        request.command = parsed;
+        request.arguments = arguments;
+    }
 
-    switch (parsed) {
+    switch (request.command) {
         .ping => {
             std.log.info("Got ping command", .{});
-            if (arguments.next()) |arg| {
+            if (request.arguments.next()) |arg| {
                 tcp.write(loop, &conn.writeCompletion, .{ .slice = arg }, Connection, conn, writeCallback);
                 return .rearm;
             }
             tcp.write(loop, &conn.writeCompletion, .{ .slice = "pong" }, Connection, conn, writeCallback);
         },
         .set => {
-            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{arguments.next().?}) catch |err| {
+            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{request.arguments.next().?}) catch |err| {
                 std.log.err("An error occurred during name allocation in set: {any}\n", .{err});
                 return .rearm;
             };
@@ -186,7 +200,7 @@ fn readCallback(
             }
 
             // insert new word into trie
-            const insertString = arguments.next().?;
+            const insertString = request.arguments.next().?;
 
             var trie = conn.server.tries.get(name).?;
             trie.insert(insertString) catch |err| {
@@ -195,13 +209,13 @@ fn readCallback(
             };
         },
         .get => {
-            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{arguments.next().?}) catch |err| {
+            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{request.arguments.next().?}) catch |err| {
                 std.log.err("An error occurred during name allocation in set: {any}\n", .{err});
                 return .rearm;
             };
 
             if (conn.server.tries.get(name)) |trie| {
-                const searchString = arguments.next().?;
+                const searchString = request.arguments.next().?;
                 if (trie.contains(searchString)) {
                     tcp.write(loop, &conn.writeCompletion, .{ .slice = "t\n" }, Connection, conn, writeCallback);
                     return .rearm;
@@ -210,8 +224,8 @@ fn readCallback(
             }
         },
         .tprefix => {
-            const triename = arguments.next().?;
-            const searchString = arguments.next().?;
+            const triename = request.arguments.next().?;
+            const searchString = request.arguments.next().?;
 
             std.log.info("searching '{s}' for '{s}'", .{ triename, searchString });
 
