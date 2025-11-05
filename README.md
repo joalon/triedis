@@ -4,7 +4,7 @@ A small server for managing in-memory tries.
 
 ## Compile
 
-Run `zig build`. Tested on zig 0.14.1.
+Run `zig build`. Tested on zig 0.15.2.
 
 ## Usage
 

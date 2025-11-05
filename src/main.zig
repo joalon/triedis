@@ -8,9 +8,10 @@ pub fn main() !void {
     const gpa = gpa_alloc.allocator();
 
     const port = 4657;
-    const address = std.net.Address.initIp4(.{ 0, 0, 0, 0 }, port);
+    const host = "127.0.0.1";
+    const address = try std.net.Address.parseIp4(host, port);
 
-    std.log.info("Starting server, listening on {any}", .{address});
+    std.log.info("Starting server, listening on {s}:{d}...", .{ host, port });
 
     var server = try Server.init(gpa, address);
     defer server.deinit();

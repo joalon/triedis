@@ -73,7 +73,7 @@ pub const Trie = struct {
     fn _prefixSearchRecursive(self: *Self, currentWord: []const u8, currentNode: *TrieNode, result: *std.ArrayList([]const u8)) !void {
         if (currentNode.endsWord) {
             const added = try std.fmt.allocPrint(self.allocator, "{s}", .{currentWord});
-            try result.append(added);
+            try result.append(self.allocator, added);
         }
 
         var iter = currentNode.children.keyIterator();

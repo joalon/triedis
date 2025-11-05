@@ -192,8 +192,8 @@ fn readCallback(
                 return .rearm;
             };
 
-            var searchresult = std.ArrayList([]const u8).init(conn.allocator);
-            defer searchresult.deinit();
+            var searchresult: std.ArrayList([]const u8) = .empty;
+            defer conn.server.allocator.free(searchresult.items);
 
             trie.prefixSearch(&searchresult, searchString) catch |err| {
                 std.log.err("An error occurred during prefixsearch: {any}\n", .{err});

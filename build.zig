@@ -29,9 +29,11 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "triedis",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     exe.root_module.addImport("server", server_mod);
@@ -50,27 +52,35 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const resp_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/resp.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/resp.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const trie_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/trie.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/trie.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const server_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/server.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/server.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const exe_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const run_resp_unit_tests = b.addRunArtifact(resp_unit_tests);
