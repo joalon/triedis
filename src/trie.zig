@@ -117,8 +117,8 @@ test "Prefix search" {
     try trie.insert("cathedral");
     try trie.insert("castle");
 
-    var result = std.ArrayList([]const u8).init(testing.allocator);
-    defer result.deinit();
+    var result: std.ArrayList([]const u8) = .empty;
+    defer result.deinit(testing.allocator);
 
     try trie.prefixSearch(&result, "cat");
 
@@ -134,7 +134,7 @@ test "Prefix search" {
     try testing.expect(std.mem.eql(u8, cathedral, result.items[2]));
 
     for (result.items) |foundStr| {
-        defer testing.allocator.free(foundStr);
+        testing.allocator.free(foundStr);
     }
 }
 

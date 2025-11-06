@@ -21,24 +21,22 @@ fn encodeSimpleStringResp(allocator: std.mem.Allocator, input: []const u8) ![]co
 }
 
 fn encodeBulkStringResp(allocator: std.mem.Allocator, input: []const u8) ![]const u8 {
-    var list = std.ArrayList(u8).init(allocator);
-    defer list.deinit();
+    var list: std.ArrayList(u8) = .empty;
 
-    try list.writer().print("${d}\r\n{s}\r\n", .{ input.len, input });
+    try list.writer(allocator).print("${d}\r\n{s}\r\n", .{ input.len, input });
 
-    return list.toOwnedSlice();
+    return list.toOwnedSlice(allocator);
 }
 
 fn encodeCommandResp(allocator: std.mem.Allocator, input: []const []const u8) ![]const u8 {
-    var list = std.ArrayList(u8).init(allocator);
-    defer list.deinit();
+    var list: std.ArrayList(u8) = .empty;
 
-    try list.writer().print("*{d}\r\n", .{input.len});
+    try list.writer(allocator).print("*{d}\r\n", .{input.len});
     for (input) |string| {
-        try list.writer().print("${d}\r\n{s}\r\n", .{ string.len, string });
+        try list.writer(allocator).print("${d}\r\n{s}\r\n", .{ string.len, string });
     }
 
-    return list.toOwnedSlice();
+    return list.toOwnedSlice(allocator);
 }
 
 test "encode string to RESP bulk string" {
