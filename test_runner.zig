@@ -8,26 +8,28 @@ const Allocator = std.mem.Allocator;
 const CtrfReport = struct {
     var Self = @This();
 
-    results: struct { tool: struct { name: []const u8 } },
-    summary: struct {
-        tests: usize,
-        passed: usize,
-        failed: usize,
-        skipped: usize,
-        start: i64,
-        stop: i64,
+    results: struct {
+        tool: struct { name: []const u8, version: []const u8 },
+        summary: struct {
+            tests: usize,
+            passed: usize,
+            failed: usize,
+            skipped: usize,
+            start: i64,
+            stop: i64,
+        },
+        tests: []const Test,
+        // environment: struct {
+        //     appName: []u8,
+        //     appVersion: []u8,
+        // }
     },
-    tests: []const Test,
 
     const Test = struct {
         name: []const u8,
         status: []const u8,
         duration: usize,
     };
-    // environment: struct {
-    //     appName: []u8,
-    //     appVersion: []u8,
-    // }
 };
 
 pub fn main() !void {
@@ -95,14 +97,14 @@ pub fn main() !void {
 
     const total_tests = pass + fail;
 
-    const ctrfReport = CtrfReport{ .results = .{ .tool = .{ .name = "zig" } }, .summary = .{
+    const ctrfReport = CtrfReport{ .results = .{ .tool = .{ .name = "zig", .version = builtin.zig_version_string }, .summary = .{
         .tests = total_tests,
         .failed = fail,
         .passed = pass,
         .skipped = skip,
         .start = tests_start,
         .stop = tests_stop,
-    }, .tests = try tests_list.toOwnedSlice(allocator) };
+    }, .tests = try tests_list.toOwnedSlice(allocator) } };
     const fmt = std.json.fmt(ctrfReport, .{ .whitespace = .indent_2 });
 
     var writer = std.Io.Writer.Allocating.init(allocator);
