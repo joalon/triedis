@@ -2,6 +2,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const zon = @import("build.zig.zon");
 
 const Allocator = std.mem.Allocator;
 
@@ -14,18 +15,17 @@ const Status = enum {
 const Report = struct {
     var Self = @This();
 
-    results: struct {
-        tool: struct { name: []const u8, version: []const u8 },
-        summary: struct {
-            tests: usize,
-            passed: usize,
-            failed: usize,
-            skipped: usize,
-            start: i64,
-            stop: i64,
-        },
-        tests: []const TestStatus,
-    },
+    results: struct { tool: struct { name: []const u8, version: []const u8 }, summary: struct {
+        tests: usize,
+        passed: usize,
+        failed: usize,
+        skipped: usize,
+        start: i64,
+        stop: i64,
+    }, tests: []const TestStatus, environment: struct {
+        appName: []const u8,
+        appVersion: []const u8,
+    } },
 
     const TestStatus = struct {
         name: []const u8,
@@ -99,19 +99,15 @@ pub fn main() !void {
 
     const totalTests = pass + fail;
 
-    const ctrfReport = Report{ .results = .{
-        .tool = .{ .name = "zig", .version = builtin.zig_version_string },
-        .summary = .{
-            .tests = totalTests,
-            .failed = fail,
-            .passed = pass,
-            .skipped = skip,
-            .start = testsStart,
-            .stop = testsStop,
-        },
-        .tests = try testStatusList.toOwnedSlice(allocator),
-    } };
-    const fmt = std.json.fmt(ctrfReport, .{ .whitespace = .indent_2 });
+    const report = Report{ .results = .{ .tool = .{ .name = "zig", .version = builtin.zig_version_string }, .summary = .{
+        .tests = totalTests,
+        .failed = fail,
+        .passed = pass,
+        .skipped = skip,
+        .start = testsStart,
+        .stop = testsStop,
+    }, .tests = try testStatusList.toOwnedSlice(allocator), .environment = .{ .appName = @tagName(zon.name), .appVersion = zon.version } } };
+    const fmt = std.json.fmt(report, .{ .whitespace = .indent_2 });
 
     var writer = std.Io.Writer.Allocating.init(allocator);
     try fmt.format(&writer.writer);
