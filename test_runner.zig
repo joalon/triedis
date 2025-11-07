@@ -5,7 +5,13 @@ const builtin = @import("builtin");
 
 const Allocator = std.mem.Allocator;
 
-const CtrfReport = struct {
+const Status = enum {
+    passed,
+    failed,
+    skipped,
+};
+
+const Report = struct {
     var Self = @This();
 
     results: struct {
@@ -18,14 +24,10 @@ const CtrfReport = struct {
             start: i64,
             stop: i64,
         },
-        tests: []const Test,
-        // environment: struct {
-        //     appName: []u8,
-        //     appVersion: []u8,
-        // }
+        tests: []const TestStatus,
     },
 
-    const Test = struct {
+    const TestStatus = struct {
         name: []const u8,
         status: []const u8,
         duration: usize,
@@ -38,21 +40,21 @@ pub fn main() !void {
 
     const allocator = fba.allocator();
 
-    const tests_start = std.time.milliTimestamp();
+    const testsStart = std.time.milliTimestamp();
 
     var pass: usize = 0;
     var fail: usize = 0;
     var skip: usize = 0;
     var leak: usize = 0;
 
-    var test_timer = try std.time.Timer.start();
+    var testTimer = try std.time.Timer.start();
 
-    var tests_list: std.ArrayList(CtrfReport.Test) = .empty;
+    var testStatusList: std.ArrayList(Report.TestStatus) = .empty;
 
     for (builtin.test_functions) |t| {
         var status = Status.passed;
 
-        const friendly_name = blk: {
+        const friendlyName = blk: {
             const name = t.name;
             var it = std.mem.splitScalar(u8, name, '.');
             while (it.next()) |value| {
@@ -66,9 +68,9 @@ pub fn main() !void {
 
         std.testing.allocator_instance = .{};
 
-        test_timer.reset();
+        testTimer.reset();
         const result = t.func();
-        const test_time = test_timer.lap();
+        const testTime = testTimer.lap();
 
         if (std.testing.allocator_instance.deinit() == .leak) {
             leak += 1;
@@ -90,21 +92,25 @@ pub fn main() !void {
             },
         }
 
-        try tests_list.append(allocator, CtrfReport.Test{ .name = friendly_name, .status = std.enums.tagName(Status, status).?, .duration = test_time });
+        try testStatusList.append(allocator, Report.TestStatus{ .name = friendlyName, .status = std.enums.tagName(Status, status).?, .duration = testTime });
     }
 
-    const tests_stop = std.time.milliTimestamp();
+    const testsStop = std.time.milliTimestamp();
 
-    const total_tests = pass + fail;
+    const totalTests = pass + fail;
 
-    const ctrfReport = CtrfReport{ .results = .{ .tool = .{ .name = "zig", .version = builtin.zig_version_string }, .summary = .{
-        .tests = total_tests,
-        .failed = fail,
-        .passed = pass,
-        .skipped = skip,
-        .start = tests_start,
-        .stop = tests_stop,
-    }, .tests = try tests_list.toOwnedSlice(allocator) } };
+    const ctrfReport = Report{ .results = .{
+        .tool = .{ .name = "zig", .version = builtin.zig_version_string },
+        .summary = .{
+            .tests = totalTests,
+            .failed = fail,
+            .passed = pass,
+            .skipped = skip,
+            .start = testsStart,
+            .stop = testsStop,
+        },
+        .tests = try testStatusList.toOwnedSlice(allocator),
+    } };
     const fmt = std.json.fmt(ctrfReport, .{ .whitespace = .indent_2 });
 
     var writer = std.Io.Writer.Allocating.init(allocator);
@@ -115,9 +121,3 @@ pub fn main() !void {
 
     std.posix.exit(if (fail == 0) 0 else 1);
 }
-
-const Status = enum {
-    passed,
-    failed,
-    skipped,
-};
