@@ -42,8 +42,8 @@ fn encodeCommandResp(allocator: std.mem.Allocator, input: []const []const u8) ![
 pub fn decodeCommandResp(allocator: std.mem.Allocator, input: []const u8) ![][]const u8 {
     if (input.len == 0) return error.InvalidInput;
 
-    var result = std.ArrayList([]const u8).init(allocator);
-    errdefer result.deinit();
+    var result: std.ArrayList([]const u8) = .empty;
+    errdefer result.deinit(allocator);
 
     if (input[0] != '*') return error.InvalidRespFormat;
 
@@ -57,11 +57,12 @@ pub fn decodeCommandResp(allocator: std.mem.Allocator, input: []const u8) ![][]c
     var i: usize = 0;
     while (i < @as(usize, @intCast(array_len))) : (i += 1) {
         const str = try parseBulkString(allocator, input, &pos);
-        try result.append(str);
+        try result.append(allocator, str);
     }
 
-    return result.toOwnedSlice();
+    return result.toOwnedSlice(allocator);
 }
+
 fn parseInteger(input: []const u8, pos: *usize) !i64 {
     var result: i64 = 0;
     var negative = false;
