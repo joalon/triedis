@@ -39,7 +39,7 @@ pub const Server = struct {
 
 const Request = struct {
     command: Commands,
-    arguments: std.mem.SplitIterator(u8, .scalar),
+    arguments: [][]const u8,
 };
 
 const Connection = struct {
@@ -166,6 +166,27 @@ fn readCallback(
             }
             conn.allocator.free(arguments);
         }
+        const parsed = parseCommand(conn.allocator, arguments[0]) orelse {
+            std.log.info("client sent invalid command: {s}", .{arguments[0]});
+            return .rearm;
+        };
+        request.command = parsed;
+        request.arguments = arguments[1..arguments.len];
+    } else {
+        var argumentsIter = std.mem.splitScalar(u8, std.mem.trim(u8, msg, "\n"), ' ');
+        var list: std.ArrayList([]const u8) = .empty;
+        while (argumentsIter.next()) |arg| {
+            list.append(conn.allocator, arg) catch |err| {
+                std.log.err("An error occurred during argument allocation: {any}\n", .{err});
+                return .rearm;
+            };
+        }
+        const arguments = list.toOwnedSlice(conn.allocator) catch |err| {
+            std.log.err("An error occurred during argument allocation: {any}\n", .{err});
+            return .rearm;
+        };
+        defer conn.allocator.free(arguments);
+
         const command = arguments[0];
         const parsed = parseCommand(conn.allocator, command) orelse {
             std.log.info("client sent invalid command: {s}", .{command});
@@ -173,28 +194,19 @@ fn readCallback(
         };
         request.command = parsed;
         request.arguments = arguments[1..arguments.len];
-    } else {
-        var arguments = std.mem.splitScalar(u8, std.mem.trim(u8, msg, "\n"), ' ');
-        const command = arguments.next().?;
-        const parsed = parseCommand(conn.allocator, command) orelse {
-            std.log.info("client sent invalid command: {s}", .{command});
-            return .rearm;
-        };
-        request.command = parsed;
-        request.arguments = arguments;
     }
 
     switch (request.command) {
         .ping => {
             std.log.info("Got ping command", .{});
-            if (request.arguments.next()) |arg| {
-                tcp.write(loop, &conn.writeCompletion, .{ .slice = arg }, Connection, conn, writeCallback);
+            if (request.arguments.len == 1) {
+                tcp.write(loop, &conn.writeCompletion, .{ .slice = request.arguments[0] }, Connection, conn, writeCallback);
                 return .rearm;
             }
             tcp.write(loop, &conn.writeCompletion, .{ .slice = "pong" }, Connection, conn, writeCallback);
         },
         .set => {
-            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{request.arguments.next().?}) catch |err| {
+            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{request.arguments[0]}) catch |err| {
                 std.log.err("An error occurred during name allocation in set: {any}\n", .{err});
                 return .rearm;
             };
@@ -215,7 +227,7 @@ fn readCallback(
             }
 
             // insert new word into trie
-            const insertString = request.arguments.next().?;
+            const insertString = request.arguments[1];
 
             var trie = conn.server.tries.get(name).?;
             trie.insert(insertString) catch |err| {
@@ -224,13 +236,13 @@ fn readCallback(
             };
         },
         .get => {
-            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{request.arguments.next().?}) catch |err| {
+            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{request.arguments[0]}) catch |err| {
                 std.log.err("An error occurred during name allocation in set: {any}\n", .{err});
                 return .rearm;
             };
 
             if (conn.server.tries.get(name)) |trie| {
-                const searchString = request.arguments.next().?;
+                const searchString = request.arguments[1];
                 if (trie.contains(searchString)) {
                     tcp.write(loop, &conn.writeCompletion, .{ .slice = "t\n" }, Connection, conn, writeCallback);
                     return .rearm;
@@ -239,8 +251,8 @@ fn readCallback(
             }
         },
         .tprefix => {
-            const triename = request.arguments.next().?;
-            const searchString = request.arguments.next().?;
+            const triename = request.arguments[0];
+            const searchString = request.arguments[1];
 
             std.log.info("searching '{s}' for '{s}'", .{ triename, searchString });
 
