@@ -185,7 +185,6 @@ fn readCallback(
             std.log.err("An error occurred during argument allocation: {any}\n", .{err});
             return .rearm;
         };
-        defer conn.allocator.free(arguments);
 
         const command = arguments[0];
         const parsed = parseCommand(conn.allocator, command) orelse {
@@ -206,30 +205,34 @@ fn readCallback(
             tcp.write(loop, &conn.writeCompletion, .{ .slice = "pong" }, Connection, conn, writeCallback);
         },
         .set => {
-            const name = std.fmt.allocPrint(conn.allocator, "{s}", .{request.arguments[0]}) catch |err| {
+            std.log.debug("Got command: '{any}', with args: {any}", .{ request.command, request.arguments });
+            const trieName = std.fmt.allocPrint(conn.allocator, "{s}", .{request.arguments[0]}) catch |err| {
                 std.log.err("An error occurred during name allocation in set: {any}\n", .{err});
                 return .rearm;
             };
 
             // create new trie if not exists
-            if (conn.server.tries.get(name) == null) {
-                std.log.info("creating '{s}'", .{name});
+            if (conn.server.tries.get(trieName) == null) {
+                std.log.info("creating '{s}'", .{trieName});
                 const newTrie = conn.allocator.create(Trie) catch |err| {
                     std.log.err("An error occurred during trie allocation in set: {any}\n", .{err});
                     return .rearm;
                 };
                 newTrie.* = Trie.init(conn.allocator);
 
-                _ = conn.server.tries.put(name, newTrie) catch |err| {
+                _ = conn.server.tries.put(trieName, newTrie) catch |err| {
                     std.log.err("An error occurred when creating the new trie in set: {any}", .{err});
                     return .rearm;
                 };
             }
 
             // insert new word into trie
-            const insertString = request.arguments[1];
+            var insertString = request.arguments[1];
+            if (request.arguments[1][0] == '"') {
+                insertString = std.mem.trim(u8, insertString, "\"");
+            }
 
-            var trie = conn.server.tries.get(name).?;
+            var trie = conn.server.tries.get(trieName).?;
             trie.insert(insertString) catch |err| {
                 std.log.err("An error occurred during insertion in .insert: {any}", .{err});
                 return .rearm;
@@ -242,7 +245,11 @@ fn readCallback(
             };
 
             if (conn.server.tries.get(name)) |trie| {
-                const searchString = request.arguments[1];
+                var searchString = request.arguments[1];
+                if (searchString[0] == '"') {
+                    searchString = std.mem.trim(u8, searchString, "\"");
+                }
+
                 if (trie.contains(searchString)) {
                     tcp.write(loop, &conn.writeCompletion, .{ .slice = "t\n" }, Connection, conn, writeCallback);
                     return .rearm;
@@ -252,7 +259,10 @@ fn readCallback(
         },
         .tprefix => {
             const triename = request.arguments[0];
-            const searchString = request.arguments[1];
+            var searchString = request.arguments[1];
+            if (searchString[0] == '"') {
+                searchString = std.mem.trim(u8, searchString, "\"");
+            }
 
             std.log.info("searching '{s}' for '{s}'", .{ triename, searchString });
 
