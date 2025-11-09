@@ -30,7 +30,7 @@ const Report = struct {
     const TestStatus = struct {
         name: []const u8,
         status: []const u8,
-        duration: usize,
+        duration: f64,
     };
 };
 
@@ -70,7 +70,9 @@ pub fn main() !void {
 
         testTimer.reset();
         const result = t.func();
-        const testTime = testTimer.lap();
+        // const testTime = testTimer.lap() / 1_000_000;
+        const nanos = testTimer.lap();
+        const testTime = @as(f64, @floatFromInt(nanos)) / 1_000_000.0;
 
         if (std.testing.allocator_instance.deinit() == .leak) {
             leak += 1;
