@@ -332,12 +332,26 @@ fn closeCallback(
     return .disarm;
 }
 
-test "parseCommand returns ping correctly" {
+test "parseCommand returns correct enum value" {
     const allocator = std.testing.allocator;
-    const input = "PING";
-    const expected = Commands.ping;
 
-    const actual = parseCommand(allocator, input);
+    const tests = .{
+        .{ "PING", Commands.ping },
+        .{ "ping", Commands.ping },
+        .{ "SET", Commands.set },
+        .{ "set", Commands.set },
+        .{ "GET", Commands.get },
+        .{ "get", Commands.get },
+        .{ "TPREFIX", Commands.tprefix },
+        .{ "tprefix", Commands.tprefix },
+    };
 
-    try std.testing.expect(actual == expected);
+    inline for (tests) |t| {
+        const input = t[0];
+        const expected = t[1];
+
+        const actual = parseCommand(allocator, input);
+
+        try std.testing.expectEqual(expected, actual);
+    }
 }
